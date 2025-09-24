@@ -5,47 +5,31 @@ class GoalsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool hasGoals = false; // Şimdilik boş, ileride liste tutacağız
+    bool hasGoals = false;
 
     void _addGoal() {
-      // Hedef ekleme işlemi
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Hedef ekleme sayfası açılacak")),
+        const SnackBar(content: Text("Hedef ekleme (placeholder)")),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
         title: const Text("Hedeflerim"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_task),
-            tooltip: "Yeni Hedef Koy",
-            onPressed: _addGoal,
-          ),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.add_task), onPressed: _addGoal)],
       ),
       body: Center(
         child: hasGoals
-            ? const Text("Hedefler listelenecek") // TODO: Liste yapısı
+            ? const Text("Hedefler listelenecek")
             : GestureDetector(
-          onTap: _addGoal, // Ortadaki kısmı tıklanabilir yaptık
+          onTap: _addGoal,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
               Icon(Icons.flag_outlined, size: 60, color: Colors.grey),
               SizedBox(height: 16),
-              Text(
-                "Henüz hedef yok.\nHedef koy!",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
+              Text("Henüz hedef yok.\nHedef koy!", textAlign: TextAlign.center, style: TextStyle(fontSize: 18, color: Colors.grey)),
             ],
           ),
         ),

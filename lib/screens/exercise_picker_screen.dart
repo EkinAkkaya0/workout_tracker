@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/exercise_store.dart';
-import '../models/selected_exercise.dart';
+import '../models/exercise_with_sets.dart';
 import 'exercises/new_exercise_screen.dart';
 import 'exercises/exercise_detail_screen.dart';
 
@@ -14,7 +14,6 @@ class ExercisePickerScreen extends StatefulWidget {
 class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
   int _tabIndex = 0; // 0 = Exercises, 1 = Templates
   List<String> _allExercises = [];
-  final List<SelectedExercise> _selected = [];
 
   @override
   void initState() {
@@ -33,7 +32,7 @@ class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
       MaterialPageRoute(builder: (_) => const NewExerciseScreen()),
     );
     if (addedName != null) {
-      await _load(); // listeyi tazele
+      await _load();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Eklendi: $addedName")),
       );
@@ -41,19 +40,14 @@ class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
   }
 
   Future<void> _openDetail(String name) async {
-    final res = await Navigator.push<SelectedExercise>(
+    final res = await Navigator.push<ExerciseWithSets>(
       context,
       MaterialPageRoute(builder: (_) => ExerciseDetailScreen(exerciseName: name)),
     );
     if (res != null) {
-      setState(() {
-        _selected.add(res);
-      });
+      // Tek egzersiz ile Home'a dön
+      Navigator.pop(context, res);
     }
-  }
-
-  void _finish() {
-    Navigator.pop(context, _selected); // Home'a seçilenleri geri dön
   }
 
   Widget _buildSwitch() {
@@ -71,38 +65,21 @@ class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
   }
 
   Widget _buildExercises() {
-    return Column(
-      children: [
-        if (_selected.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              children: [
-                Expanded(child: Text("${_selected.length} egzersiz seçildi")),
-                TextButton.icon(onPressed: _finish, icon: const Icon(Icons.check), label: const Text("Bitir")),
-              ],
-            ),
-          ),
-        Expanded(
-          child: ListView.separated(
-            itemCount: _allExercises.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final name = _allExercises[i];
-              return ListTile(
-                title: Text(name),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _openDetail(name),
-              );
-            },
-          ),
-        ),
-      ],
+    return ListView.separated(
+      itemCount: _allExercises.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (context, i) {
+        final name = _allExercises[i];
+        return ListTile(
+          title: Text(name),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openDetail(name),
+        );
+      },
     );
   }
 
   Widget _buildTemplates() {
-    // Şimdilik placeholder — ileride şablonları burada listeleyeceğiz
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -117,8 +94,6 @@ class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canFinish = _selected.isNotEmpty;
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
@@ -128,11 +103,6 @@ class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
             tooltip: "Yeni egzersiz ekle",
             icon: const Icon(Icons.add),
             onPressed: _addNewExercise,
-          ),
-          IconButton(
-            tooltip: "Seçimi bitir",
-            icon: const Icon(Icons.check),
-            onPressed: canFinish ? _finish : null,
           ),
         ],
       ),

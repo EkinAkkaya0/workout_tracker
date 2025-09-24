@@ -18,7 +18,7 @@ class _NewExerciseScreenState extends State<NewExerciseScreen> {
     setState(() => _saving = true);
     await ExerciseStore.addCustomExercise(name);
     if (!mounted) return;
-    Navigator.pop(context, name); // geri dön ve ismi ilet
+    Navigator.pop(context, name);
   }
 
   @override
@@ -28,11 +28,7 @@ class _NewExerciseScreenState extends State<NewExerciseScreen> {
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
         title: const Text("Yeni Egzersiz"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: _saving ? null : _save,
-            tooltip: "Kaydet",
-          )
+          IconButton(icon: const Icon(Icons.check), onPressed: _saving ? null : _save),
         ],
       ),
       body: Padding(

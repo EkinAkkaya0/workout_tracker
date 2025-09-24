@@ -5,9 +5,16 @@ class ExerciseStore {
   static const _customKey = 'custom_exercises_v1';
 
   static const List<String> _baseExercises = [
-    "Bench Press", "Squat", "Deadlift", "Overhead Press",
-    "Barbell Row", "Pull-up", "Dip", "Biceps Curl",
-    "Triceps Pushdown", "Leg Press",
+    "Bench Press",
+    "Squat",
+    "Deadlift",
+    "Overhead Press",
+    "Barbell Row",
+    "Pull-up",
+    "Dip",
+    "Biceps Curl",
+    "Triceps Pushdown",
+    "Leg Press",
   ];
 
   static Future<List<String>> getCustomExercises() async {

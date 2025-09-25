@@ -1,41 +1,60 @@
 import 'package:flutter/material.dart';
+import '../../models/exercise_model.dart';
 import '../../models/exercise_with_sets.dart';
 
 class ExerciseDetailScreen extends StatefulWidget {
-  final String exerciseName;
-  const ExerciseDetailScreen({super.key, required this.exerciseName});
+  final Exercise exercise;
+  final ExerciseWithSets? initialData;
+
+  const ExerciseDetailScreen({
+    super.key,
+    required this.exercise,
+    this.initialData,
+  });
 
   @override
   State<ExerciseDetailScreen> createState() => _ExerciseDetailScreenState();
 }
 
 class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
-  double _weight = 20.0;
-  int _reps = 10;
+  double _firstValue = 0; // Ağırlık / Hız
+  int _secondValue = 0;   // Tekrar / Süre
 
-  final TextEditingController _weightController = TextEditingController();
-  final TextEditingController _repsController = TextEditingController();
+  final TextEditingController _firstCtrl = TextEditingController();
+  final TextEditingController _secondCtrl = TextEditingController();
 
   final List<Map<String, dynamic>> _sets = [];
+  int? _editingIndex;
 
   @override
   void initState() {
     super.initState();
-    _weightController.text = _weight.toStringAsFixed(1);
-    _repsController.text = _reps.toString();
+    _firstCtrl.text = _firstValue.toStringAsFixed(1);
+    _secondCtrl.text = _secondValue.toString();
+
+    if (widget.initialData != null) {
+      _sets.addAll(widget.initialData!.sets.map((s) {
+        return {
+          'setNo': s['setNo'],
+          'first': s['first'],
+          'second': s['second'],
+          'note': s.containsKey('note') ? s['note'] : "",
+        };
+      }));
+    }
   }
 
-  void _updateWeight(double delta) {
+  void _updateFirst(double delta) {
     setState(() {
-      _weight = (_weight + delta).clamp(0, 999).toDouble();
-      _weightController.text = _weight.toStringAsFixed(1);
+      _firstValue = (_firstValue + delta).clamp(0, 999).toDouble();
+      _firstCtrl.text = _firstValue.toStringAsFixed(1);
     });
   }
 
-  void _updateReps(int delta) {
+  void _updateSecond(int delta) {
     setState(() {
-      _reps = (_reps + delta).clamp(0, 999);
-      _repsController.text = _reps.toString();
+      _secondValue = (_secondValue + delta).clamp(0, 999);
+      _secondCtrl.text = _secondValue.toString();
     });
   }
 
@@ -43,9 +62,23 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     setState(() {
       _sets.add({
         'setNo': _sets.length + 1,
-        'weight': _weight,
-        'reps': _reps,
+        'first': _firstValue,
+        'second': _secondValue,
+        'note': "",
       });
+    });
+  }
+
+  void _updateSet() {
+    if (_editingIndex == null) return;
+    setState(() {
+      _sets[_editingIndex!] = {
+        'setNo': _editingIndex! + 1,
+        'first': _firstValue,
+        'second': _secondValue,
+        'note': _sets[_editingIndex!]['note'],
+      };
+      _editingIndex = null;
     });
   }
 
@@ -57,11 +90,47 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       return;
     }
     final result = ExerciseWithSets(
-      name: widget.exerciseName,
+      name: widget.exercise.name,
+      metricType: widget.exercise.metricType, // 🔑 eklendi
       sets: List<Map<String, dynamic>>.from(_sets),
     );
-    // Detay -> Picker'a dön (tek egzersiz)
     Navigator.pop(context, result);
+  }
+
+
+  void _editNoteDialog(int index) {
+    final controller = TextEditingController(text: _sets[index]['note'] ?? "");
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Set ${_sets[index]['setNo']} için not"),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: "Notunuzu yazın...",
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("İptal"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _sets[index]['note'] = controller.text.trim();
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("Kaydet"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _circleButton(IconData icon, VoidCallback onPressed) {
@@ -74,9 +143,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         padding: EdgeInsets.zero,
         alignment: Alignment.center,
         style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Theme.of(context).colorScheme.primary),
-          foregroundColor: MaterialStateProperty.all(Colors.white),
-          shape: MaterialStateProperty.all(const CircleBorder()),
+          backgroundColor:
+          WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+          foregroundColor: WidgetStateProperty.all(Colors.white),
+          shape: WidgetStateProperty.all(const CircleBorder()),
         ),
       ),
     );
@@ -92,7 +162,9 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
-          Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          Text(label,
+              style:
+              const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -104,17 +176,20 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 child: TextField(
                   controller: controller,
                   textAlign: TextAlign.center,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (val) {
-                    if (label.contains("Ağırlık")) {
-                      final parsed = double.tryParse(val);
-                      if (parsed != null) _weight = parsed;
-                    } else {
-                      final parsed = int.tryParse(val);
-                      if (parsed != null) _reps = parsed;
+                    final parsed = double.tryParse(val);
+                    if (parsed != null) {
+                      if (label.contains("Ağırlık") || label.contains("Hız")) {
+                        _firstValue = parsed;
+                      } else {
+                        _secondValue = parsed.toInt();
+                      }
                     }
                   },
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  decoration:
+                  const InputDecoration(border: OutlineInputBorder()),
                 ),
               ),
               const SizedBox(width: 16),
@@ -126,24 +201,156 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  Widget _buildSetRow(Map<String, dynamic> set) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        child: Row(
+  Widget _buildInputs() {
+    switch (widget.exercise.metricType) {
+      case MetricType.weightReps:
+        return Column(
           children: [
-            Text("Set ${set['setNo']}", style: const TextStyle(fontWeight: FontWeight.w600)),
-            Expanded(
-              child: Center(
-                child: Text("${set['weight']} kg × ${set['reps']} tekrar", style: const TextStyle(fontSize: 16)),
-              ),
+            _buildLabeledField(
+              label: "Ağırlık (kg)",
+              controller: _firstCtrl,
+              onDec: () => _updateFirst(-2.5),
+              onInc: () => _updateFirst(2.5),
             ),
-            const Icon(Icons.note_add_outlined, color: Colors.grey),
+            _buildLabeledField(
+              label: "Tekrar",
+              controller: _secondCtrl,
+              onDec: () => _updateSecond(-1),
+              onInc: () => _updateSecond(1),
+            ),
           ],
+        );
+      case MetricType.weightTime:
+        return Column(
+          children: [
+            _buildLabeledField(
+              label: "Ağırlık (kg)",
+              controller: _firstCtrl,
+              onDec: () => _updateFirst(-2.5),
+              onInc: () => _updateFirst(2.5),
+            ),
+            _buildLabeledField(
+              label: "Süre (sn)",
+              controller: _secondCtrl,
+              onDec: () => _updateSecond(-5),
+              onInc: () => _updateSecond(5),
+            ),
+          ],
+        );
+      case MetricType.speedTime:
+        return Column(
+          children: [
+            _buildLabeledField(
+              label: "Hız (km/s)",
+              controller: _firstCtrl,
+              onDec: () => _updateFirst(-0.5),
+              onInc: () => _updateFirst(0.5),
+            ),
+            _buildLabeledField(
+              label: "Süre (dk)",
+              controller: _secondCtrl,
+              onDec: () => _updateSecond(-1),
+              onInc: () => _updateSecond(1),
+            ),
+          ],
+        );
+    }
+  }
+
+  Widget _buildSetRow(Map<String, dynamic> set, int index) {
+    final hasNote = (set['note'] ?? "").toString().isNotEmpty;
+
+    // Görüntü formatı metricType'a göre
+    String display;
+    switch (widget.exercise.metricType) {
+      case MetricType.weightReps:
+        display = "${set['first']} kg × ${set['second']} tekrar";
+        break;
+      case MetricType.weightTime:
+        display = "${set['first']} kg × ${set['second']} sn";
+        break;
+      case MetricType.speedTime:
+        display = "${set['first']} km/s × ${set['second']} dk";
+        break;
+    }
+
+    return Dismissible(
+      key: UniqueKey(),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      onDismissed: (_) {
+        final removedSetNo = set['setNo'];
+        setState(() {
+          _sets.removeAt(index);
+          for (int i = 0; i < _sets.length; i++) {
+            _sets[i]['setNo'] = i + 1;
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Set $removedSetNo silindi")),
+        );
+      },
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _editingIndex = index;
+            _firstValue = set['first'].toDouble();
+            _secondValue = set['second'];
+            _firstCtrl.text = _firstValue.toStringAsFixed(1);
+            _secondCtrl.text = _secondValue.toString();
+          });
+        },
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: Row(
+              children: [
+                Text("Set ${set['setNo']}",
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      display,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.note_add_outlined,
+                    color: hasNote ? Colors.blue : Colors.grey,
+                  ),
+                  tooltip: "Sete not ekle",
+                  onPressed: () => _editNoteDialog(index),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildActionButton() {
+    if (_editingIndex != null) {
+      return ElevatedButton.icon(
+        onPressed: _updateSet,
+        icon: const Icon(Icons.check),
+        label: const Text("Seti Güncelle"),
+      );
+    } else {
+      return ElevatedButton.icon(
+        onPressed: _addSet,
+        icon: const Icon(Icons.add),
+        label: const Text("Set Ekle"),
+      );
+    }
   }
 
   @override
@@ -155,34 +362,22 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           tooltip: "Egzersizlere dön",
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(widget.exerciseName),
+        title: Text(widget.exercise.name),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildLabeledField(
-              label: "Ağırlık (kg)",
-              controller: _weightController,
-              onDec: () => _updateWeight(-2.5),
-              onInc: () => _updateWeight(2.5),
-            ),
-            _buildLabeledField(
-              label: "Tekrar",
-              controller: _repsController,
-              onDec: () => _updateReps(-1),
-              onInc: () => _updateReps(1),
-            ),
-            ElevatedButton.icon(
-              onPressed: _addSet,
-              icon: const Icon(Icons.add),
-              label: const Text("Set Ekle"),
-            ),
+            _buildInputs(),
+            _buildActionButton(),
             const SizedBox(height: 12),
             Expanded(
               child: _sets.isEmpty
                   ? const Center(child: Text("Henüz set yok"))
-                  : ListView(children: _sets.map(_buildSetRow).toList()),
+                  : ListView.builder(
+                itemCount: _sets.length,
+                itemBuilder: (context, i) => _buildSetRow(_sets[i], i),
+              ),
             ),
             SizedBox(
               width: double.infinity,

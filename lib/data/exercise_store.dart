@@ -1,41 +1,45 @@
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/exercise_model.dart';
+import 'dart:convert';
 
 class ExerciseStore {
-  static const _customKey = 'custom_exercises_v1';
+  static const _key = "exercises";
 
-  static const List<String> _baseExercises = [
-    "Bench Press",
-    "Squat",
-    "Deadlift",
-    "Overhead Press",
-    "Barbell Row",
-    "Pull-up",
-    "Dip",
-    "Biceps Curl",
-    "Triceps Pushdown",
-    "Leg Press",
-  ];
+  static Future<List<Exercise>> getAllExercises() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_key) ?? [];
 
-  static Future<List<String>> getCustomExercises() async {
-    final sp = await SharedPreferences.getInstance();
-    final raw = sp.getString(_customKey);
-    if (raw == null) return [];
-    final list = (jsonDecode(raw) as List).cast<String>();
-    return list;
-  }
+    if (list.isEmpty) {
+      return _seedDefaults(prefs);
+    }
 
-  static Future<void> addCustomExercise(String name) async {
-    final sp = await SharedPreferences.getInstance();
-    final cur = await getCustomExercises();
-    if (!cur.contains(name)) {
-      cur.add(name);
-      await sp.setString(_customKey, jsonEncode(cur));
+    try {
+      return list.map((s) => Exercise.fromJson(json.decode(s))).toList();
+    } catch (_) {
+      // Eski format bozuk → resetle
+      return _seedDefaults(prefs);
     }
   }
 
-  static Future<List<String>> getAllExercises() async {
-    final custom = await getCustomExercises();
-    return [..._baseExercises, ...custom];
+  static Future<List<Exercise>> _seedDefaults(SharedPreferences prefs) async {
+    final defaults = [
+      Exercise(name: "Bench Press", category: "Göğüs", metricType: MetricType.weightReps),
+      Exercise(name: "Squat", category: "Bacak", metricType: MetricType.weightReps),
+      Exercise(name: "Plank", category: "Karın", metricType: MetricType.weightTime),
+      Exercise(name: "Running", category: "Cardio", metricType: MetricType.speedTime),
+      Exercise(name: "Cycling", category: "Cardio", metricType: MetricType.speedTime),
+    ];
+    final encoded = defaults.map((e) => json.encode(e.toJson())).toList();
+    await prefs.setStringList(_key, encoded);
+    return defaults;
+  }
+
+
+
+  static Future<void> addExercise(Exercise ex) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_key) ?? [];
+    list.add(json.encode(ex.toJson()));
+    await prefs.setStringList(_key, list);
   }
 }

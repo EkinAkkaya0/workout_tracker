@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/exercise_store.dart';
+import '../../models/exercise_model.dart';
 
 class NewExerciseScreen extends StatefulWidget {
   const NewExerciseScreen({super.key});
@@ -9,39 +10,62 @@ class NewExerciseScreen extends StatefulWidget {
 }
 
 class _NewExerciseScreenState extends State<NewExerciseScreen> {
-  final _controller = TextEditingController();
-  bool _saving = false;
+  final _nameCtrl = TextEditingController();
+  String _selectedCategory = "Göğüs";
 
-  Future<void> _save() async {
-    final name = _controller.text.trim();
-    if (name.isEmpty) return;
-    setState(() => _saving = true);
-    await ExerciseStore.addCustomExercise(name);
-    if (!mounted) return;
-    Navigator.pop(context, name);
+  final List<String> categories = [
+    "Karın", "Sırt", "Biceps", "Triceps", "Göğüs", "Bacak", "Omuz", "Cardio"
+  ];
+
+  void _save() async {
+    if (_nameCtrl.text.trim().isEmpty) return;
+
+    // kategoriye göre metricType seç
+    MetricType type;
+    switch (_selectedCategory) {
+      case "Karın":
+        type = MetricType.weightTime;
+        break;
+      case "Cardio":
+        type = MetricType.speedTime;
+        break;
+      default:
+        type = MetricType.weightReps;
+    }
+
+    final ex = Exercise(
+      name: _nameCtrl.text.trim(),
+      category: _selectedCategory,
+      metricType: type,
+    );
+
+    await ExerciseStore.addExercise(ex);
+    Navigator.pop(context, ex.name);
   }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-        title: const Text("Yeni Egzersiz"),
-        actions: [
-          IconButton(icon: const Icon(Icons.check), onPressed: _saving ? null : _save),
-        ],
-      ),
+      appBar: AppBar(title: const Text("Yeni Egzersiz")),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: TextField(
-          controller: _controller,
-          decoration: const InputDecoration(
-            labelText: "Egzersiz adı",
-            hintText: "Örn. Incline Dumbbell Press",
-            border: OutlineInputBorder(),
-          ),
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _save(),
+        child: Column(
+          children: [
+            TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(labelText: "Egzersiz adı"),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              onChanged: (v) => setState(() => _selectedCategory = v ?? "Göğüs"),
+              decoration: const InputDecoration(labelText: "Kategori"),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(onPressed: _save, child: const Text("Ekle")),
+          ],
         ),
       ),
     );

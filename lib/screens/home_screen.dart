@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../models/exercise_model.dart';
 import 'exercise_picker_screen.dart';
 import 'goals/goals_screen.dart';
+import 'exercises/exercise_detail_screen.dart';
 import '../models/exercise_with_sets.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -10,7 +12,6 @@ class HomeScreen extends StatefulWidget {
   HomeScreenState createState() => HomeScreenState();
 }
 
-// PUBLIC state — main.dart'ta GlobalKey<HomeScreenState> ile erişeceğiz
 class HomeScreenState extends State<HomeScreen> {
   int dayOffset = 0;
   final Map<int, List<ExerciseWithSets>> _selectedByDay = {};
@@ -25,7 +26,6 @@ class HomeScreenState extends State<HomeScreen> {
     return "$dayOffset gün sonra";
   }
 
-  // main.dart'tan çağrılacak public method
   Future<void> openExercisePicker() => _openPicker();
 
   Future<void> _openPicker() async {
@@ -40,38 +40,108 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildExerciseCard(ExerciseWithSets ex) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(ex.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Column(
-              children: ex.sets.map((set) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Set ${set['setNo']}"),
-                    Expanded(
-                      child: Center(
-                        child: Text("${set['weight']} kg × ${set['reps']} tekrar",
-                            style: const TextStyle(fontSize: 16)),
-                      ),
-                    ),
-                    const Icon(Icons.note_add_outlined, color: Colors.grey),
-                  ],
-                );
-              }).toList(),
+  Widget _buildExerciseCard(ExerciseWithSets ex, int index) {
+    return InkWell(
+      onTap: () async {
+        final updated = await Navigator.push<ExerciseWithSets>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ExerciseDetailScreen(
+              exercise: Exercise(
+                name: ex.name,
+                category: "?", // kategori opsiyonel burada
+                metricType: ex.metricType, // 🔑 artık buradan alıyoruz
+              ),
+              initialData: ex,
             ),
-          ],
+          ),
+        );
+        if (updated != null) {
+          setState(() {
+            _todayExercises[index] = updated;
+          });
+        }
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(ex.name,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Column(
+                children: ex.sets.map((set) {
+                  final hasNote = (set['note'] ?? "").toString().isNotEmpty;
+
+                  String display;
+                  switch (ex.metricType) {
+                    case MetricType.weightReps:
+                      display = "${set['first']} kg × ${set['second']} tekrar";
+                      break;
+                    case MetricType.weightTime:
+                      display = "${set['first']} kg × ${set['second']} sn";
+                      break;
+                    case MetricType.speedTime:
+                      display = "${set['first']} km/s × ${set['second']} dk";
+                      break;
+                  }
+
+                  return Row(
+                    children: [
+                      Text("Set ${set['setNo']}"),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            display,
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 28,
+                        child: hasNote
+                            ? GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  title: Text("Set ${set['setNo']} notu"),
+                                  content: Text(set['note']),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text("Kapat"),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                          child: const Icon(
+                            Icons.note_add_outlined,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                        )
+                            : null,
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +217,10 @@ class HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               )
-                  : ListView(children: _todayExercises.map(_buildExerciseCard).toList()),
+                  : ListView.builder(
+                itemCount: _todayExercises.length,
+                itemBuilder: (context, i) => _buildExerciseCard(_todayExercises[i], i),
+              ),
             ),
             const SizedBox(height: 8),
           ],

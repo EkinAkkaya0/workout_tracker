@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/exercise_store.dart';
+import '../models/exercise_model.dart';
 import '../models/exercise_with_sets.dart';
 import 'exercises/new_exercise_screen.dart';
 import 'exercises/exercise_detail_screen.dart';
@@ -11,13 +12,21 @@ class ExercisePickerScreen extends StatefulWidget {
   State<ExercisePickerScreen> createState() => _ExercisePickerScreenState();
 }
 
-class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
+class _ExercisePickerScreenState extends State<ExercisePickerScreen>
+    with SingleTickerProviderStateMixin {
   int _tabIndex = 0; // 0 = Exercises, 1 = Templates
-  List<String> _allExercises = [];
+  List<Exercise> _allExercises = [];
+
+  late TabController _tabController;
+
+  final List<String> categories = [
+    "Karın", "Sırt", "Biceps", "Triceps", "Göğüs", "Bacak", "Omuz", "Cardio"
+  ];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: categories.length, vsync: this);
     _load();
   }
 
@@ -39,13 +48,15 @@ class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
     }
   }
 
-  Future<void> _openDetail(String name) async {
+  // 🔧 Artık String name değil, direkt Exercise alıyor
+  Future<void> _openDetail(Exercise ex) async {
     final res = await Navigator.push<ExerciseWithSets>(
       context,
-      MaterialPageRoute(builder: (_) => ExerciseDetailScreen(exerciseName: name)),
+      MaterialPageRoute(
+        builder: (_) => ExerciseDetailScreen(exercise: ex),
+      ),
     );
     if (res != null) {
-      // Tek egzersiz ile Home'a dön
       Navigator.pop(context, res);
     }
   }
@@ -65,29 +76,46 @@ class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
   }
 
   Widget _buildExercises() {
-    return ListView.separated(
-      itemCount: _allExercises.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, i) {
-        final name = _allExercises[i];
-        return ListTile(
-          title: Text(name),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => _openDetail(name),
-        );
-      },
+    return Column(
+      children: [
+        TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: categories.map((c) => Tab(text: c)).toList(),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: categories.map((cat) {
+              final list = _allExercises.where((e) => e.category == cat).toList();
+              if (list.isEmpty) {
+                return const Center(child: Text("Bu kategoride egzersiz yok"));
+              }
+              return ListView.separated(
+                itemCount: list.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final ex = list[i];
+                  return ListTile(
+                    title: Text(ex.name),
+                    trailing: const Icon(Icons.chevron_right),
+                    // 🔧 Burada da ex.name yerine ex geçiyoruz
+                    onTap: () => _openDetail(ex),
+                  );
+                },
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildTemplates() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.view_module, size: 56, color: Colors.grey),
-          SizedBox(height: 8),
-          Text("Henüz şablon yok.\nYakında burada olacak.", textAlign: TextAlign.center),
-        ],
+    return const Center(
+      child: Text(
+        "Henüz şablon yok.\nYakında burada olacak.",
+        textAlign: TextAlign.center,
       ),
     );
   }
